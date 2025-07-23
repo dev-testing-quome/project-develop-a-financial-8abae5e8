@@ -1,19 +1,19 @@
 import uvicorn
-from fastapi import FastAPI, Request, HTTPException, Depends, status
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
 from database import SessionLocal, engine
 from models import Base
-from routers import users, portfolio, trading  # Add more routers as needed
+from routers import users, portfolio, trading, market_data # Add other routers as needed
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# CORS Configuration
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],  # Replace with your allowed origins in production
@@ -22,7 +22,7 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-# Dependency Injection for Database Session
+# Dependency injection for database session
 def get_db():
     db = SessionLocal()
     try:
@@ -30,38 +30,37 @@ def get_db():
     finally:
         db.close()
 
-# Router Inclusion
+# Router inclusion
 app.include_router(users.router)
 app.include_router(portfolio.router)
 app.include_router(trading.router)
+app.include_router(market_data.router) # Add other routers as needed
 
-# Health Check Endpoint
+# Health check endpoint
 @app.get('/health')
 def health_check():
-    return {'status': 'ok'}
+    return {'status': 'OK'}
 
-# Exception Handling
+# Static file serving
+if os.path.exists('static'):
+    app.mount('/static', StaticFiles(directory='static'), name='static')
+
+    @app.get('/{path:path}')
+    async def serve_frontend(path: str):
+        if path.startswith('api'):
+            return None
+        file_path = os.path.join('static', path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join('static', 'index.html')) # SPA routing
+
+# Exception handling
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    return JSONResponse({'detail': exc.detail}, status_code=exc.status_code)
+    return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail})
 
-# Static File Serving and Frontend Routing
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-    
-    @app.get("/{{"file_path:path}}")
-    async def serve_frontend(file_path: str):
-        if file_path.startswith("api/") or file_path == "":
-            return None # Let API routes handle it or return 404 for root
-        static_file = os.path.join("static", file_path)
-        if os.path.isfile(static_file):
-            return FileResponse(static_file)
-        return FileResponse("static/index.html") # SPA routing
+# OpenAPI documentation
+app.openapi_url = '/openapi.json'
 
-# OpenAPI Documentation
-app.docs_url = '/docs'
-app.redoc_url = '/redoc'
-
-# Start the application (for local development)
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+if __name__ == '__main__':
+    uvicorn.run(app, host='0.0.0.0', port=8000)

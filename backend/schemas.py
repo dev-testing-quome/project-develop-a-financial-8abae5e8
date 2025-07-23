@@ -4,37 +4,49 @@ from datetime import datetime
 
 class UserCreate(BaseModel):
     username: str
-    email: str
     password: str
+    email: str
 
-class UserResponse(BaseModel):
+class UserRead(BaseModel):
     id: int
     username: str
     email: str
+    kyc_verified: bool
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        orm_mode = True
 
 class PortfolioCreate(BaseModel):
     user_id: int
 
-class PortfolioResponse(BaseModel):
+class PortfolioRead(BaseModel):
     id: int
     user_id: int
-    total_value: float
+    total_value: Optional[int] = 0
     created_at: datetime
     updated_at: datetime
+    
+    class Config:
+        orm_mode = True
 
-class HoldingCreate(BaseModel):
+class TransactionCreate(BaseModel):
     portfolio_id: int
     symbol: str
-    quantity: float
-    purchase_price: float
+    quantity: int
+    price: float
+    transaction_type: str
 
-class HoldingResponse(BaseModel):
+class TransactionRead(BaseModel):
     id: int
     portfolio_id: int
     symbol: str
-    quantity: float
-    purchase_price: float
+    quantity: int
+    price: float
+    transaction_type: str
     created_at: datetime
     updated_at: datetime
+    
+    class Config:
+        orm_mode = True
